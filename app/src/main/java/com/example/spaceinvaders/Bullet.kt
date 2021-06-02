@@ -10,11 +10,9 @@ class Bullet(
 
   val position = RectF()
 
-  // Which way is it shooting
+  // dirección de la bala
   val up = 0
   val down = 1
-
-  // Going nowhere
   private var heading = -1
 
   private val width = 2
@@ -34,18 +32,16 @@ class Bullet(
       return true
     }
 
-    // Bullet already active
     return false
   }
 
+  // actualizar el movimiento de la bala
   fun update(fps: Long) {
-    // Just move up or down
     if (heading == up)
       position.top -= speed / fps
     else
       position.top += speed / fps
 
-    // Update the bottom position
     position.bottom = position.top + height
   }
 }

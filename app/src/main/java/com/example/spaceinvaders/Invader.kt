@@ -7,7 +7,6 @@ import android.graphics.RectF
 import java.util.*
 
 class Invader(context: Context, row: Int, column: Int, screenX: Int, screenY: Int) {
-  // How wide, high and spaced out are the invader will be
   var width = screenX / 35f
   private var height = screenY / 35f
   private val padding = screenX / 45
@@ -19,29 +18,26 @@ class Invader(context: Context, row: Int, column: Int, screenX: Int, screenY: In
     100 + row * (width + padding / 4) + height
   )
 
-  // This will hold the pixels per second speed that the invader will move
+  // velocidad del invader
   private var speed = 40f
 
   private val left = 1
   private val right = 2
 
-  // Is the ship moving and in which direction
+  // dirección (derecha o izquierda)
   private var shipMoving = right
 
   var isVisible = true
 
   companion object {
-    // The alien ship will be represented by a Bitmap
     lateinit var bitmap1: Bitmap
     lateinit var bitmap2: Bitmap
 
-    // keep track of the number of instances
-    // that are active
+    // cantidad de invaders activos
     var numberOfInvaders = 0
   }
 
   init {
-    // Initialize the bitmaps
     bitmap1 = BitmapFactory.decodeResource(
       context.resources,
       R.drawable.invader1
@@ -52,16 +48,13 @@ class Invader(context: Context, row: Int, column: Int, screenX: Int, screenY: In
       R.drawable.invader2
     )
 
-    // stretch the first bitmap to a size
-    // appropriate for the screen resolution
+    // escalado de los sprites
     bitmap1 = Bitmap.createScaledBitmap(
       bitmap1,
       (width.toInt()),
       (height.toInt()),
       false
     )
-
-    // stretch the second bitmap as well
     bitmap2 = Bitmap.createScaledBitmap(
       bitmap2,
       (width.toInt()),
@@ -91,7 +84,7 @@ class Invader(context: Context, row: Int, column: Int, screenX: Int, screenY: In
     position.top += height
     position.bottom += height
 
-    // The later the wave, the more the invader speeds up
+    // aumento de la velocidad por oleadas
     speed *= (1.1f + (waveNumber.toFloat() / 20))
   }
 
@@ -105,20 +98,16 @@ class Invader(context: Context, row: Int, column: Int, screenX: Int, screenY: In
     val generator = Random()
     var randomNumber: Int
 
-    // If near the player consider taking a shot
     if (playerShipX + playerShipLength > position.left &&
       playerShipX + playerShipLength < position.left + width ||
       playerShipX > position.left && playerShipX < position.left + width
     ) {
 
-      // The fewer invaders the more each invader shoots
-      // The higher the wave the more the invader shoots
       randomNumber = generator.nextInt((100 * numberOfInvaders) / waves)
       if (randomNumber == 0)
         return true
     }
 
-    // If firing randomly (not near the player)
     randomNumber = generator.nextInt(150 * numberOfInvaders)
     return randomNumber == 0
   }

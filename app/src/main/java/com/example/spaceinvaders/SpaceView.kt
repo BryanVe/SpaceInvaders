@@ -9,76 +9,47 @@ import android.view.MotionEvent
 import android.view.SurfaceView
 import androidx.annotation.RequiresApi
 
-class KotlinInvadersView(
+class SpaceView(
   context: Context,
   private val size: Point
 ) : SurfaceView(context), Runnable {
-  // For making a noise
-  private val soundPlayer = SoundPlayer(context)
-
-  // This is our thread
   private val gameThread = Thread(this)
-
-  // A boolean which we will set and unset
   private var playing = false
-
-  // Game is paused at the start
   private var paused = true
 
-  // A Canvas and a Paint object
   private var canvas: Canvas = Canvas()
   private val paint: Paint = Paint()
 
-  // The players ship
-  private var playerShip: PlayerShip = PlayerShip(context, size.x, size.y)
+  private var ship = Ship(context, size.x, size.y)
 
-  // Some Invaders
+  // invaders
   private val invaders = ArrayList<Invader>()
   private var numInvaders = 0
 
-  // The player's shelters are built from bricks
+  // escudos
   private val bricks = ArrayList<DefenceBrick>()
   private var numBricks: Int = 0
 
-  // The player's playerBullet
-  // much faster and half the length
-  // compared to invader's bullet
   private var playerBullet = Bullet(size.y, 1200f, 40f)
 
-  // The invaders bullets
   private val invadersBullets = ArrayList<Bullet>()
   private var nextBullet = 0
   private val maxInvaderBullets = 10
 
-  // The score
   private var score = 0
-
-  // The wave number
   private var waves = 1
-
-  // Lives
   private var lives = 3
 
-  // To remember the high score
   private val prefs: SharedPreferences = context.getSharedPreferences(
     "Kotlin Invaders",
     Context.MODE_PRIVATE
   )
 
   private var highScore = prefs.getInt("highScore", 0)
-
-  // How menacing should the sound be?
-  private var menaceInterval: Long = 1000
-
-  // Which menace sound should play next
   private var uhOrOh: Boolean = false
 
-  // When did we last play a menacing sound
-  private var lastMenaceTime = System.currentTimeMillis()
-
   private fun prepareLevel() {
-    // Here we will initialize the game objects
-    // Build an army of invaders
+    // prepara el nivel y rellena de invaders
     Invader.numberOfInvaders = 0
     numInvaders = 0
     for (column in 0..10)
@@ -95,7 +66,7 @@ class KotlinInvadersView(
         numInvaders++
       }
 
-    // Build the shelters
+    // rellena los escudos con los bricks
     numBricks = 0
     for (shelterNumber in 0..4)
       for (column in 0..18)
@@ -113,100 +84,60 @@ class KotlinInvadersView(
           numBricks++
         }
 
-    // Initialize the invadersBullets array
     for (i in 0 until maxInvaderBullets)
       invadersBullets.add(Bullet(size.y))
   }
 
   @RequiresApi(Build.VERSION_CODES.O)
   override fun run() {
-    // This variable tracks the game frame rate
     var fps: Long = 0
     while (playing) {
-      // Capture the current time
       val startFrameTime = System.currentTimeMillis()
 
-      // Update the frame
       if (!paused)
         update(fps)
 
-      // Draw the frame
       draw()
 
-      // Calculate the fps rate this frame
       val timeThisFrame = System.currentTimeMillis() - startFrameTime
       if (timeThisFrame >= 1)
         fps = 1000 / timeThisFrame
-
-      // Play a sound based on the menace level
-      if (!paused && ((startFrameTime - lastMenaceTime) > menaceInterval))
-        menacePlayer()
     }
   }
 
-  private fun menacePlayer() {
-    // Play Uh
-    if (uhOrOh)
-      soundPlayer.playSound(SoundPlayer.uhID)
-    // Play Oh
-    else
-      soundPlayer.playSound(SoundPlayer.ohID)
-
-    // Reset the last menace time
-    lastMenaceTime = System.currentTimeMillis()
-    // Alter value of uhOrOh
-    uhOrOh = !uhOrOh
-  }
-
   private fun update(fps: Long) {
-    // Update the state of all the game objects
+    ship.update(fps)
 
-    // Move the player's ship
-    playerShip.update(fps)
-
-    // Did an invader bump into the side of the screen
+    // si la posición de los invaders llegó al borde de la pantalla
     var bumped = false
-
-    // Has the player lost
+    // flag de game over
     var lost = false
 
-    // Update all the invaders if visible
+    // actualiza la visibilidad de los invaders
     for (invader in invaders) {
       if (invader.isVisible) {
-        // Move the next invader
         invader.update(fps)
 
-        // Does he want to take a shot?
         if (invader.takeAim(
-            playerShip.position.left,
-            playerShip.width,
+            ship.position.left,
+            ship.width,
             waves
           )
         ) {
 
-          // If so try and spawn a bullet
           if (invadersBullets[nextBullet].shoot(
               invader.position.left + invader.width / 2,
               invader.position.top, playerBullet.down
             )
           ) {
-
-            // Shot fired
-            // Prepare for the next shot
             nextBullet++
 
-            // Loop back to the first one if we have reached the last
-            // This stops the firing of bullet
-            // until one completes its journey
-            // Because if bullet 0 is still active
-            // shoot returns false.
             if (nextBullet == maxInvaderBullets)
               nextBullet = 0
           }
         }
 
-        // If that move caused them to bump
-        // the screen change bumped to true
+        // determinamos si se llego a un borde para alternar el movimiento
         if (invader.position.left > size.x - invader.width
           || invader.position.left < 0
         )
@@ -214,44 +145,38 @@ class KotlinInvadersView(
       }
     }
 
-    // Update the players playerBullet
     if (playerBullet.isActive) {
       playerBullet.update(fps)
     }
-
-    // Update all the invaders bullets if active
 
     for (bullet in invadersBullets)
       if (bullet.isActive)
         bullet.update(fps)
 
-    // Did an invader bump into the edge of the screen
+    // alternamos el moviento
     if (bumped)
-      // Move all the invaders down and change direction
       for (invader in invaders) {
         invader.dropDownAndReverse(waves)
-        // Have the invaders landed
         if (invader.position.bottom >= size.y && invader.isVisible)
           lost = true
       }
 
-    // Has the player's playerBullet hit the top of the screen
+    // la bala llego arriba del todo
     if (playerBullet.position.bottom < 0)
       playerBullet.isActive = false
 
-    // Has an invaders playerBullet hit the bottom of the screen
+    // las balas de los invaders llegaron abajo del todo
     for (bullet in invadersBullets)
       if (bullet.position.top > size.y)
         bullet.isActive = false
 
-    // Has the player's playerBullet hit an invader
+    // si una bala golpeo a algun invader
     if (playerBullet.isActive)
       for (invader in invaders)
         if (invader.isVisible)
           if (RectF.intersects(playerBullet.position, invader.position)) {
             invader.isVisible = false
 
-            soundPlayer.playSound(SoundPlayer.invaderExplodeID)
             playerBullet.isActive = false
             Invader.numberOfInvaders--
             score += 10
@@ -259,8 +184,6 @@ class KotlinInvadersView(
               highScore = score
             }
 
-            // Has the player cleared the level
-            //if (score == numInvaders * 10 * waves) {
             if (Invader.numberOfInvaders == 0) {
               paused = true
               lives++
@@ -272,11 +195,10 @@ class KotlinInvadersView(
               break
             }
 
-            // Don't check any more invaders
             break
           }
 
-    // Has an alien playerBullet hit a shelter brick
+    // si una bala golpeo un brick
     for (bullet in invadersBullets)
       if (bullet.isActive)
         for (brick in bricks)
@@ -285,10 +207,8 @@ class KotlinInvadersView(
               // A collision has occurred
               bullet.isActive = false
               brick.isVisible = false
-              soundPlayer.playSound(SoundPlayer.damageShelterID)
             }
 
-    // Has a player playerBullet hit a shelter brick
     if (playerBullet.isActive)
       for (brick in bricks)
         if (brick.isVisible)
@@ -296,16 +216,13 @@ class KotlinInvadersView(
             // A collision has occurred
             playerBullet.isActive = false
             brick.isVisible = false
-            soundPlayer.playSound(SoundPlayer.damageShelterID)
           }
 
-    // Has an invader playerBullet hit the player ship
     for (bullet in invadersBullets)
       if (bullet.isActive)
-        if (RectF.intersects(playerShip.position, bullet.position)) {
+        if (RectF.intersects(ship.position, bullet.position)) {
           bullet.isActive = false
           lives--
-          soundPlayer.playSound(SoundPlayer.playerExplodeID)
 
           // Is it game over?
           if (lives == 0) {
@@ -328,32 +245,24 @@ class KotlinInvadersView(
 
   @RequiresApi(Build.VERSION_CODES.O)
   private fun draw() {
-    // Make sure our drawing surface is valid or the game will crash
     if (holder.surface.isValid) {
       paint.typeface = resources.getFont(R.font.pixelart)
       paint.textAlign = Paint.Align.CENTER
 
-      // Lock the canvas ready to draw
       canvas = holder.lockCanvas()
-
-      // Draw the background color canvas.drawColor(Color.argb(255, 0, 0, 0))
 
       val bitmap = BitmapFactory.decodeResource(resources, R.drawable.space)
       canvas.drawBitmap(bitmap, 0f, 0f, paint)
 
-      // Choose the brush color for drawing
       paint.color = Color.argb(255, 107, 214, 75)
 
-      // Draw all the game objects here
-      // Now draw the player spaceship
       canvas.drawBitmap(
-        playerShip.bitmap,
-        playerShip.position.left,
-        playerShip.position.top,
+        ship.bitmap,
+        ship.position.left,
+        ship.position.top,
         paint
       )
 
-      // Draw the invaders
       for (invader in invaders)
         if (invader.isVisible) {
           if (uhOrOh)
@@ -372,22 +281,17 @@ class KotlinInvadersView(
             )
         }
 
-      // Draw the bricks if visible
       for (brick in bricks)
         if (brick.isVisible)
           canvas.drawRect(brick.position, paint)
 
-      // Draw the players playerBullet if active
       if (playerBullet.isActive)
         canvas.drawRect(playerBullet.position, paint)
 
-      // Draw the invaders bullets
       for (bullet in invadersBullets)
         if (bullet.isActive)
           canvas.drawRect(bullet.position, paint)
 
-      // Draw the score and remaining lives
-      // Change the brush color
       paint.color = Color.argb(255, 255, 255, 255)
       paint.textSize = 70f
       val xPos = (canvas.width / 2).toFloat()
@@ -399,13 +303,10 @@ class KotlinInvadersView(
         paint
       )
 
-      // Draw everything to the screen
       holder.unlockCanvasAndPost(canvas)
     }
   }
 
-  // If SpaceInvadersActivity is paused/stopped
-  // then shut down our thread.
   fun pause() {
     playing = false
     try {
@@ -428,46 +329,35 @@ class KotlinInvadersView(
     }
   }
 
-  // If SpaceInvadersActivity is started then
-  // start our thread.
   fun resume() {
     playing = true
     prepareLevel()
     gameThread.start()
   }
 
-  // The SurfaceView class implements onTouchListener
-  // So we can override this method and detect screen touches.
   override fun onTouchEvent(motionEvent: MotionEvent): Boolean {
     val motionArea = size.y - (size.y / 8)
     when (motionEvent.action and MotionEvent.ACTION_MASK) {
-      // Player has touched the screen
-      // Or moved their finger while touching screen
       MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
         paused = false
 
         if (motionEvent.y > motionArea) {
           if (motionEvent.x > size.x / 2)
-            playerShip.moving = PlayerShip.right
+            ship.moving = Ship.right
           else
-            playerShip.moving = PlayerShip.left
+            ship.moving = Ship.left
         }
 
-        // Shots fired
-        if (motionEvent.y < motionArea)
-          if (playerBullet.shoot(
-              playerShip.position.left + playerShip.width / 2f,
-              playerShip.position.top,
-              playerBullet.up
-            )
-          )
-            soundPlayer.playSound(SoundPlayer.shootID)
+        playerBullet.shoot(
+          ship.position.left + ship.width / 2f,
+          ship.position.top,
+          playerBullet.up
+        )
       }
 
-      // Player has removed finger from screen
       MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> {
         if (motionEvent.y > motionArea)
-          playerShip.moving = PlayerShip.stopped
+          ship.moving = Ship.stopped
       }
     }
 

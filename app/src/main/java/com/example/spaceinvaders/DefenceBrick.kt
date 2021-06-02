@@ -8,11 +8,9 @@ class DefenceBrick(row: Int, column: Int, shelterNumber: Int, screenX: Int, scre
   private val width = screenX / 180
   private val height = screenY / 80
 
-  // Sometimes a bullet slips through this padding.
-  // Set padding to zero if this annoys you
   private val brickPadding = 1
 
-  // The number of shelters
+  // cantidad de escudos
   private val shelterPadding = screenX / 12f
   private val startHeight = screenY - screenY / 10f * 2f
 
