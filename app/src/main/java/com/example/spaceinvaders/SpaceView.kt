@@ -13,6 +13,7 @@ class SpaceView(
   context: Context,
   private val size: Point
 ) : SurfaceView(context), Runnable {
+  private val soundEffects = SoundEffects(context)
   private val gameThread = Thread(this)
   private var playing = false
   private var paused = true
@@ -27,7 +28,7 @@ class SpaceView(
   private var numInvaders = 0
 
   // escudos
-  private val bricks = ArrayList<DefenceBrick>()
+  private val bricks = ArrayList<DefenseBrick>()
   private var numBricks: Int = 0
 
   private var playerBullet = Bullet(size.y, 1200f, 40f)
@@ -46,7 +47,9 @@ class SpaceView(
   )
 
   private var highScore = prefs.getInt("highScore", 0)
+  private var menaceInterval: Long = 1000
   private var uhOrOh: Boolean = false
+  private var lastMenaceTime = System.currentTimeMillis()
 
   private fun prepareLevel() {
     // prepara el nivel y rellena de invaders
@@ -72,7 +75,7 @@ class SpaceView(
       for (column in 0..18)
         for (row in 0..8) {
           bricks.add(
-            DefenceBrick(
+            DefenseBrick(
               row,
               column,
               shelterNumber,
@@ -91,6 +94,7 @@ class SpaceView(
   @RequiresApi(Build.VERSION_CODES.O)
   override fun run() {
     var fps: Long = 0
+
     while (playing) {
       val startFrameTime = System.currentTimeMillis()
 
@@ -102,7 +106,24 @@ class SpaceView(
       val timeThisFrame = System.currentTimeMillis() - startFrameTime
       if (timeThisFrame >= 1)
         fps = 1000 / timeThisFrame
+
+      if (!paused && ((startFrameTime - lastMenaceTime) > menaceInterval))
+        menacePlayer()
     }
+  }
+
+  private fun menacePlayer() {
+    if (uhOrOh) {
+      soundEffects.playSound(SoundEffects.uhID)
+    } else {
+      soundEffects.playSound(SoundEffects.ohID)
+    }
+
+    // Reset the last menace time
+    lastMenaceTime = System.currentTimeMillis()
+    // Alter value of uhOrOh
+    uhOrOh = !uhOrOh
+
   }
 
   private fun update(fps: Long) {
@@ -177,6 +198,7 @@ class SpaceView(
           if (RectF.intersects(playerBullet.position, invader.position)) {
             invader.isVisible = false
 
+            soundEffects.playSound(SoundEffects.invaderExplodeID)
             playerBullet.isActive = false
             Invader.numberOfInvaders--
             score += 10
@@ -207,6 +229,7 @@ class SpaceView(
               // A collision has occurred
               bullet.isActive = false
               brick.isVisible = false
+              soundEffects.playSound(SoundEffects.damageShelterID)
             }
 
     if (playerBullet.isActive)
@@ -216,6 +239,7 @@ class SpaceView(
             // A collision has occurred
             playerBullet.isActive = false
             brick.isVisible = false
+            soundEffects.playSound(SoundEffects.damageShelterID)
           }
 
     for (bullet in invadersBullets)
@@ -223,6 +247,7 @@ class SpaceView(
         if (RectF.intersects(ship.position, bullet.position)) {
           bullet.isActive = false
           lives--
+          soundEffects.playSound(SoundEffects.playerExplodeID)
 
           // Is it game over?
           if (lives == 0) {
@@ -348,11 +373,14 @@ class SpaceView(
             ship.moving = Ship.left
         }
 
-        playerBullet.shoot(
-          ship.position.left + ship.width / 2f,
-          ship.position.top,
-          playerBullet.up
-        )
+        if (motionEvent.y < motionArea) {
+          if (playerBullet.shoot(
+              ship.position.left + ship.width / 2f,
+              ship.position.top,
+              playerBullet.up
+            ))
+              soundEffects.playSound(SoundEffects.shootID)
+        }
       }
 
       MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> {

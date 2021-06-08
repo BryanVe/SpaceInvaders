@@ -3,7 +3,7 @@ package com.example.spaceinvaders
 import android.graphics.RectF
 
 
-class DefenceBrick(row: Int, column: Int, shelterNumber: Int, screenX: Int, screenY: Int) {
+class DefenseBrick(row: Int, column: Int, shelterNumber: Int, screenX: Int, screenY: Int) {
   var isVisible = true
   private val width = screenX / 180
   private val height = screenY / 80
